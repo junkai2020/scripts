@@ -12,3 +12,5 @@ sysbench_test.sh
 #MySQL TPCC自动化测试脚本
 tpcc_test.sh
 
+#Venice 设备信息查询
+chk_venice.sh
