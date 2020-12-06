@@ -1,0 +1,14 @@
+#常见脚本汇总信息
+
+#PCIe SSD基础性能测试脚本
+ssdtest.sh
+
+#MySQL 自动化创建脚本
+mysql_init.sh
+
+#MySQL SYSBENCH自动化测试脚本
+sysbench_test.sh
+
+#MySQL TPCC自动化测试脚本
+tpcc_test.sh
+
