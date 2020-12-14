@@ -9,6 +9,9 @@ mysql_init.sh
 #MySQL SYSBENCH自动化测试脚本
 sysbench_test.sh
 
+#MySQL SYSBENCH 结果处理
+get_result.sh
+
 #MySQL TPCC自动化测试脚本
 tpcc_test.sh
 
