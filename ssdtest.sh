@@ -8,40 +8,17 @@ then
         echo "Error: Need root privilege to run this script."
         exit 1
 fi
-# Check fio version
-which fio &> /dev/null
-
-if [ $? -eq "0" ]
-then
-        fioversion=`fio --version`
-        echo "Based on ${fioversion}"
-        echo
-else
-        echo "Error: Failed to locate fio program, please go to the following website and fetch the latest version."
-        echo "Project page: https://git.kernel.org/pub/scm/linux/kernel/git/axboe/fio.git"
-        exit 1
-fi
-
-# Check gnuplot
-which gnuplot &> /dev/null
-
-if [ $? -eq "0" ]
-then
-        :
-else
-        echo "Error: Failed to locate gnuplot program, please install gnuplot."
-        exit 1
-fi
-#check nvme
-which nvme &> /dev/null
-if [ $? -eq "0" ]
-then
-        :
-else
-        echo "Error: Failed to locate nvme command, please install nvme cli."
-	echo "https://github.com/linux-nvme/nvme-cli"
-        exit 1
-fi
+# check tools list
+tool_list=(fio nvme gnuplot iostat bc mkfs.ext4 awk)
+for tool in ${tool_list[*]}
+do
+	which $tool &> /dev/null
+	if [ $? -ne "0" ]
+	then
+		echo "error! plz install $tool!!!"
+		exit 1
+	fi
+done
 
 # Log
 w_log()
@@ -88,8 +65,11 @@ checkexit()
 
 usage() {
         echo "usage: ssdtest.sh -d block_device  -c character_device  -t runtime "
-        echo "eg: ssdtest.sh -d dfa -c scta -t 3600 "
+        echo "eg: sh -x ssdtest.sh -d dfa -c scta -t 3600 >dfa.log 2>&1 & "
+	echo "eg: sh -x ssdtest.sh -d nvme0n1 -t 3600 >nvme0n1.log 2>&1 &"
+	echo "									"
 }
+
 # Getopts
 while getopts "d:t:c:" arg
 do
@@ -125,6 +105,26 @@ else
 
 fi
 
+# Determine iostat output format
+tmpstr=$(iostat -dmx | grep "Device")
+i=0
+for col in ${tmpstr[*]}
+do
+    ((i=$i+1))
+    if [ "$col" = "r/s" ]
+    then
+        read_iops_col=$i
+    elif [ "$col" = "w/s" ]
+    then
+        write_iops_col=$i
+    elif [ "$col" = "rMB/s" ]
+    then
+        read_bw_col=$i
+    elif [ "$col" = "wMB/s" ]
+    then
+        write_bw_col=$i
+    fi  
+done
 
 
 # Get test environment
@@ -178,6 +178,7 @@ cd ${basedir}
 #sh -x /root/smp_affinity.sh 
 
 #prepare sequence write & read
+
 erasedisk
 logfile=${DEV}_seqprepare_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
@@ -303,7 +304,7 @@ do
    done
    sleep 30
 done
-
+EOF
 write_iops=$(cat ${DEV}_wiops | awk -F ';' '{print $49}')
 write_55_iops=$(cat ${DEV}_rw_55_iops | awk -F ';' '{print $49}')
 write_73_iops=$(cat ${DEV}_rw_73_iops | awk -F ';' '{print $49}')
@@ -343,10 +344,10 @@ max_wiops=$( echo "$avg_wiops*1.05"|bc)
 echo $avg_wiops $min_wiops  $max_wiops
 
 #get result
-grep ${DEV}  ${DEV}_riops_iostat|awk '{print $4}'  >riops
-grep ${DEV}  ${DEV}_wiops_iostat|awk '{print $5}'  >wiops
-grep ${DEV}  ${DEV}_wbw_iostat|awk '{print $7}'  >wbw
-grep ${DEV}  ${DEV}_rbw_iostat|awk '{print $6}'  >rbw
+grep ${DEV}  ${DEV}_riops_iostat|awk '{print $'$read_iops_col'}'  >riops
+grep ${DEV}  ${DEV}_wiops_iostat|awk '{print $'$write_iops_col'}'  >wiops
+grep ${DEV}  ${DEV}_wbw_iostat|awk '{print $'$write_bw_col'}'  >wbw
+grep ${DEV}  ${DEV}_rbw_iostat|awk '{print $'$read_bw_col'}'  >rbw
 
 #count
 #rbw
@@ -373,19 +374,40 @@ wiops_consist_percent=$(echo "scale=4;$consist_cnt/$total_cnt*100"|bc)
 #iostat plot
 for file in ${DEV}*iostat
 do
+   rno=0
+   wno=0
    test_type=`echo "$file"|awk -F "_" '{print $2}'`
    if [ $test_type == "seqprepare" ] || [ $test_type == "wbw" ];then
-       no=7
+		wno=1
+		no=$write_bw_col
    elif [ $test_type == "rbw" ];then
-       no=6
+		rno=1
+		no=$read_bw_col
    elif [ $test_type == "randprepare" ] || [ $test_type == "wiops" ];then
-       no=5
+        wno=1
+		no=$write_iops_col
+   elif [ $test_type == "riops" ];then
+		rno=1
+		no=$read_iops_col
    else
-       no=4
+		rno=1
+		wno=1
    fi
-echo $no 
-grep ${DEV} $file |awk  -v no=$no '{print $no }'  >iostat_plot
-         echo " 
+   echo $no  $rno $wno
+   if [ $rno -eq 1 ] && [ $wno -eq 1 ];then
+       grep  ${DEV} $file |awk  -v riops=${read_iops_col} -v wiops=${write_iops_col} '{print $riops,$wiops}' >iostat_plot
+            echo " 
+            set terminal png size 1600, 900
+            set output \"$file.png\"
+            set title \"$file \"
+            set xlabel \"Time\"
+            set ylabel \"$file \"
+            set grid 
+            plot  \"iostat_plot\" using 1  title \"riops\",\"iostat_plot\" using 2  title \"wiops\"
+        " |gnuplot		
+   else
+      grep ${DEV} $file |awk  -v no=$no '{print $no }'  >iostat_plot
+            echo " 
             set terminal png size 1600, 900
             set output \"$file.png\"
             set title \"$file \"
@@ -394,6 +416,7 @@ grep ${DEV} $file |awk  -v no=$no '{print $no }'  >iostat_plot
             set grid 
             plot  \"iostat_plot\" using 1  title \"$file\"
         " |gnuplot
+   fi
 done
 w_log "plot iostat finished!"
 
@@ -421,4 +444,3 @@ w_log "
 
  see more: $basedir
  -------------------End-------------------------"
-
