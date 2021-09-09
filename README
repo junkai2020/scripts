@@ -3,7 +3,7 @@
 #常见脚本汇总信息
 
 #PCIe SSD基础性能测试脚本
-ssdtest.sh
+ssdtest.sh 20210909
 
 #MySQL 自动化创建脚本
 mysql_init.sh
