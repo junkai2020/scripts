@@ -12,12 +12,12 @@ fi
 tool_list=(fio nvme gnuplot iostat bc mkfs.ext4 awk)
 for tool in ${tool_list[*]}
 do
-	which $tool &> /dev/null
-	if [ $? -ne "0" ]
-	then
-		echo "error! plz install $tool!!!"
-		exit 1
-	fi
+        which $tool &> /dev/null
+        if [ $? -ne "0" ]
+        then
+                echo "error! plz install $tool!!!"
+                exit 1
+        fi
 done
 
 # Log
@@ -66,8 +66,8 @@ checkexit()
 usage() {
         echo "usage: ssdtest.sh -d block_device  -c character_device  -t runtime "
         echo "eg: sh -x ssdtest.sh -d dfa -c scta -t 3600 >dfa.log 2>&1 & "
-	echo "eg: sh -x ssdtest.sh -d nvme0n1 -t 3600 >nvme0n1.log 2>&1 &"
-	echo "									"
+        echo "eg: sh -x ssdtest.sh -d nvme0n1 -t 3600 >nvme0n1.log 2>&1 &"
+        echo "                                                                  "
 }
 
 # Getopts
@@ -77,9 +77,9 @@ do
                 "d")
                 DEV="$OPTARG"
                 ;;
-	        "c")
+                "c")
                 CDEV="$OPTARG"
-		        ;;
+                        ;;
                 "t")
                 RUNTIME="$OPTARG"
                 ;;
@@ -165,7 +165,6 @@ then
    #firmware_build=`nvme admin-passthru /dev/$DEV -o 0xC2 --cdw10 0x400 --cdw12 0x40 --cdw15 3 -l 4099 -r|grep 01f0|awk '{print $NF}'`
    serial_number=`ocnvme list |grep $DEV|awk '{print $2}'`   
 fi
-
 # Prepare work directory
 homedir=$(pwd)
 t_date=$(date +%Y%m%d%H%M)
@@ -184,7 +183,7 @@ logfile=${DEV}_seqprepare_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Do Fio...seq prepare_test iostatlog: $logfile"
-fio --filename=/dev/$DEV --ioengine=libaio --direct=1 --name=init_seq  --output=${DEV}_init_seq.log    --rw=write    --bs=128k --numjobs=1 --norandommap --randrepeat=0 --iodepth=128 --gtod_reduce=1  --loops=2
+fio --filename=/dev/$DEV --ioengine=libaio --direct=1 --name=init_seq  --output=${DEV}_init_seq.log    --rw=write    --bs=128k --numjobs=1 --norandommap --randrepeat=0 --iodepth=128   --loops=2
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV seq prepare test done!"
@@ -195,7 +194,7 @@ logfile=${DEV}_wbw_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log  "Testing 128K Seq  Write Bandwidth:         "
-fio --name=wbw --filename=/dev/$DEV --numjobs=1 --bs=128k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=write --group_reporting --iodepth=128  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_wbw
+fio --name=wbw --filename=/dev/$DEV --numjobs=1 --bs=128k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=write --group_reporting --iodepth=128   --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_wbw
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 128K Seq Write Bandwidth done!"
@@ -206,11 +205,23 @@ logfile=${DEV}_rbw_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Seq 128K Read Bandwidth:                  "
-fio --name=rbw --filename=/dev/$DEV --numjobs=1 --bs=128k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=read --group_reporting --iodepth=128  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_rbw
+fio --name=rbw --filename=/dev/$DEV --numjobs=1 --bs=128k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=read --group_reporting --iodepth=128   --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_rbw
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 128K Seq Read Bandwidth done!"
 sleep 60
+
+#seq write trim
+logfile=${DEV}_wbw_trim_iostat
+iostat -dmx /dev/$DEV  1 > $logfile &
+bgpid=$!
+w_log "Seq 1M trim write  Bandwidth:                  "
+fio --name=trim --filename=/dev/$DEV --numjobs=1 --bs=1024k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=trim --group_reporting --iodepth=128   --ramp_time=300 --runtime=${RUNTIME} --time_based  > ${DEV}_trim_write
+checkexit
+kill -KILL $bgpid
+w_log "Fio.../dev/$DEV Seq 1M trim write  Bandwidth done!"
+sleep 60
+
 
 #prepare rand write & read
 erasedisk
@@ -218,7 +229,7 @@ logfile=${DEV}_randprepare_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Do Fio...random prepare_test iostatlog: $logfile"
-fio --filename=/dev/$DEV --ioengine=libaio --direct=1 --name=init_rand --output=${DEV}_init_random.log --rw=randwrite --bs=4k  --numjobs=4 --norandommap --randrepeat=0 --iodepth=64  --gtod_reduce=1  --loops=1
+fio --filename=/dev/$DEV --ioengine=libaio --direct=1 --name=init_rand --output=${DEV}_init_random.log --rw=randwrite --bs=4k  --numjobs=4 --norandommap --randrepeat=0 --iodepth=64    --loops=1
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV random prepare test done!"
@@ -229,7 +240,7 @@ logfile=${DEV}_wiops_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Testing 4K Random Write IOPS:           "
-fio --name=wiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randwrite --group_reporting --iodepth=64  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_wiops
+fio --name=wiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randwrite --group_reporting --iodepth=64   --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_wiops
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 4K Random Write IOPS done!"
@@ -240,7 +251,7 @@ logfile=${DEV}_riops_iostat
 iostat -dmx /dev/$DEV 1 >$logfile &
 bgpid=$!
 w_log "Testing 4K Random Read IOPS:            "
-fio --name=riops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randread --group_reporting --iodepth=64 --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_riops 
+fio --name=riops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randread --group_reporting --iodepth=64  --ramp_time=300 --runtime=${RUNTIME} --time_based --minimal > ${DEV}_riops 
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 4k Random Read IOPS done!"
@@ -251,7 +262,7 @@ logfile=${DEV}_mixrw55_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Testing 4K Random Write IOPS:           "
-fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=50  --group_reporting --iodepth=64  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_55_iops
+fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=50  --group_reporting --iodepth=64   --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_55_iops
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 4K Rand rw 1:1  IOPS done!"
@@ -262,7 +273,7 @@ logfile=${DEV}_mixrw73_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Testing 4K Random Write IOPS:           "
-fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=70  --group_reporting --iodepth=64  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_73_iops
+fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=70  --group_reporting --iodepth=64   --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_73_iops
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 4K Rand rw 7:3  IOPS done!"
@@ -273,12 +284,22 @@ logfile=${DEV}_mixrw91_iostat
 iostat -dmx /dev/$DEV  1 > $logfile &
 bgpid=$!
 w_log "Testing 4K Random Write IOPS:           "
-fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=90  --group_reporting --iodepth=64  --gtod_reduce=1 --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_91_iops
+fio --name=rwiops --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randrw --rwmixread=90  --group_reporting --iodepth=64   --ramp_time=300 --runtime=${RUNTIME}  --time_based --minimal > ${DEV}_rw_91_iops
 checkexit
 kill -KILL $bgpid
 w_log "Fio.../dev/$DEV 4K Rand rw 9:1  IOPS done!"
 sleep 60
 
+#rand write trim
+logfile=${DEV}_wbw_randtrim_iostat
+iostat -dmx /dev/$DEV  1 > $logfile &
+bgpid=$!
+w_log " 4k randtrim write  Bandwidth:                  "
+fio --name=randtrim --filename=/dev/$DEV --numjobs=4 --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randtrim --group_reporting --iodepth=64   --ramp_time=300 --runtime=${RUNTIME} --time_based  > ${DEV}_randtrim_write
+checkexit
+kill -KILL $bgpid
+w_log "Fio.../dev/$DEV 4k randtrim write  Bandwidth done!"
+sleep 60
 
 #test latency
 #rand write latency
@@ -300,23 +321,31 @@ for numjob in 1 4 8 16
 do 
    for iodept in 32 64 128 256
    do
-          fio --name=riops --filename=/dev/${DEV} --numjobs=${numjob} --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randread --group_reporting --iodepth=${iodept}  --gtod_reduce=1 --ramp_time=60 --runtime=300 --time_based -minimal >${numjob}_${iodept}_randread
+          fio --name=riops --filename=/dev/${DEV} --numjobs=${numjob} --bs=4k --ioengine=libaio --direct=1 --randrepeat=0 --norandommap --rw=randread --group_reporting --iodepth=${iodept}   --ramp_time=60 --runtime=300 --time_based -minimal >${numjob}_${iodept}_randread
    done
    sleep 30
 done
-EOF
-write_iops=$(cat ${DEV}_wiops | awk -F ';' '{print $49}')
+
 write_55_iops=$(cat ${DEV}_rw_55_iops | awk -F ';' '{print $49}')
 write_73_iops=$(cat ${DEV}_rw_73_iops | awk -F ';' '{print $49}')
 write_91_iops=$(cat ${DEV}_rw_91_iops | awk -F ';' '{print $49}')
-read_iops=$(cat ${DEV}_riops | awk -F ';' '{print $8}')
-read_55_iops=$(cat ${DEV}_rw_55_iops | awk -F ';' '{print $8}')
-read_73_iops=$(cat ${DEV}_rw_73_iops | awk -F ';' '{print $8}')
-read_91_iops=$(cat ${DEV}_rw_91_iops | awk -F ';' '{print $8}')
-write_lat=$(cat ${DEV}_wlatency | awk -F ';' '{print $81}')
-read_lat=$(cat ${DEV}_rlatency | awk -F ';' '{print $40}')
-write_bw=$(cat ${DEV}_wbw | awk -F ';' '{print $48}')
-read_bw=$(cat ${DEV}_rbw | awk -F ';' '{print $7}')
+read_55_iops=$(cat ${DEV}_rw_55_iops  | awk -F ';' '{print $8}')
+read_73_iops=$(cat ${DEV}_rw_73_iops  | awk -F ';' '{print $8}')
+read_91_iops=$(cat ${DEV}_rw_91_iops  | awk -F ';' '{print $8}')
+
+#add trim randtrim
+write_trim=(`cat ${DEV}_trim_write|grep BW|awk -F '[ =]+' '{print $6}'`)
+write_randtrim=(`cat ${DEV}_randtrim_write|grep BW|awk -F '[ =]+' '{print $6}'`)
+
+#add 99% 99.9 99.99% latency percentiles  remove gtod_reduce=1
+write_lat=(`cat ${DEV}_wlatency | awk -F ';' '{print $81,$71,$73,$75}'`)
+read_lat=(`cat ${DEV}_rlatency  | awk -F ';' '{print $40,$30,$32,$34}'`)
+write_iops=(`cat ${DEV}_wiops   | awk -F ';' '{print $49,$71,$73,$75}'`)
+read_iops=(`cat ${DEV}_riops    | awk -F ';' '{print $8,$30,$32,$34}'`)
+write_bw=(`cat ${DEV}_wbw       | awk -F ';' '{print $48,$71,$73,$75}'`)
+read_bw=(`cat ${DEV}_rbw        | awk -F ';' '{print $7,$30,$32,$34}'`)
+
+
 for filename in `ls *randread`
 do 
      readiops=$(cat ${filename}| awk -F ';' '{print $8}');    
@@ -326,19 +355,20 @@ job=`sort -n -k 2 max_randreadiops|tail -n 1|awk '{print $1}'`
 maxiops=`sort -n -k 2 max_randreadiops|tail -n 1|awk '{print $2}'`
 
 #consist count
-avg_rbw=$(($read_bw / 1000))
+echo ${read_bw[0]}
+avg_rbw=$((${read_bw[0]} / 1000))
 min_rbw=$( echo "$avg_rbw*0.95"|bc)
 max_rbw=$( echo "$avg_rbw*1.05"|bc)
 echo $avg_rbw  $min_rbw $max_rbw
-avg_wbw=$(($write_bw / 1000))
+avg_wbw=$((${write_bw[0]} / 1000))
 min_wbw=$( echo "$avg_wbw*0.95"|bc)
 max_wbw=$( echo "$avg_wbw*1.05"|bc)
 echo $avg_wbw  $min_wbw  $max_wbw
-avg_riops=$read_iops
+avg_riops=${read_iops[0]}
 min_riops=$( echo "$avg_riops*0.95"|bc)
 max_riops=$( echo "$avg_riops*1.05"|bc)
 echo $avg_riops  $min_riops $max_riops
-avg_wiops=$write_iops
+avg_wiops=${write_iops[0]}
 min_wiops=$( echo "$avg_wiops*0.95"|bc)
 max_wiops=$( echo "$avg_wiops*1.05"|bc)
 echo $avg_wiops $min_wiops  $max_wiops
@@ -378,20 +408,20 @@ do
    wno=0
    test_type=`echo "$file"|awk -F "_" '{print $2}'`
    if [ $test_type == "seqprepare" ] || [ $test_type == "wbw" ];then
-		wno=1
-		no=$write_bw_col
+                wno=1
+                no=$write_bw_col
    elif [ $test_type == "rbw" ];then
-		rno=1
-		no=$read_bw_col
+                rno=1
+                no=$read_bw_col
    elif [ $test_type == "randprepare" ] || [ $test_type == "wiops" ];then
         wno=1
-		no=$write_iops_col
+                no=$write_iops_col
    elif [ $test_type == "riops" ];then
-		rno=1
-		no=$read_iops_col
+                rno=1
+                no=$read_iops_col
    else
-		rno=1
-		wno=1
+                rno=1
+                wno=1
    fi
    echo $no  $rno $wno
    if [ $rno -eq 1 ] && [ $wno -eq 1 ];then
@@ -404,7 +434,7 @@ do
             set ylabel \"$file \"
             set grid 
             plot  \"iostat_plot\" using 1  title \"riops\",\"iostat_plot\" using 2  title \"wiops\"
-        " |gnuplot		
+        " |gnuplot
    else
       grep ${DEV} $file |awk  -v no=$no '{print $no }'  >iostat_plot
             echo " 
@@ -424,23 +454,47 @@ w_log "型号|代号|容量|固件:CPS|主控|Flash颗粒|顺序读带宽(128K 1
 w_log "${mode}||${user_capacity}|${firmware_build}:${cps_crc}|||$(( ${read_bw} / 1000 )) MB/s|$(( ${write_bw} / 1000 )) MB/s|$(( ${read_iops} / 1000 ))K|$(( ${maxiops} /1000 ))K($job)|$(( ${write_iops} / 1000 ))K||${write_lat}||${read_lat}|$machine  $cpucount * $cpucores  $cpu  $memory GB SSD: $model SN:$serial_number Kernel:$kernel  $fioversion DRIVER:${driver_version} `date "+%F %T"`"
 
 w_log "
- -------------Test environment -----------------
+ -------------Test environment -------------------------------------
  machine: $machine   kernel:$kernel
  cpu: $cpucount * $cpucores  $cpu 
  memory: $memory GB  
  fio : $fioversion   ssd: $model ${user_capacity}  $serial_number 功耗: ${p_status}
- -------------Performance Summary---------------
- Seq Write Bandwidth:   $(( ${write_bw} / 1000 )) MB/s($wbw_consist_percent)
- Seq Read Bandwidth:    $(( ${read_bw} / 1000 )) MB/s($rbw_consist_percent)
- 4K Random Write Latency:  ${write_lat} us
- 4K Random Write IOPS:     $(( ${write_iops} / 1000 ))K($wiops_consist_percent)
- 4K Random Read Latency:   ${read_lat} us
- 4K Random Read IOPS:      $(( ${read_iops} / 1000 ))K($riops_consist_percent)
+ -------------Performance Summary------------------------------------
+ Seq Write Bandwidth:      $((${write_bw[0]} / 1000 )) MB/s($wbw_consist_percent) 
+ Seq Read Bandwidth:       $((${read_bw[0]} / 1000 )) MB/s($rbw_consist_percent)  
+ 4K Random Write Latency:  ${write_lat[0]}us                                       
+ 4K Random Write IOPS:     $((${write_iops[0]} / 1000 ))K($wiops_consist_percent) 
+ 4K Random Read Latency:   ${read_lat[0]} us                                       
+ 4K Random Read IOPS:      $((${read_iops[0]} / 1000 ))K($riops_consist_percent)  
  
---------------------------------------------------
+-----------------------mix readwrite performance----------------------
  4k Random rw 5:5 IOPS(rw):   $(( ${read_55_iops} / 1000 ))K  $(( ${write_55_iops} / 1000 ))K
  4k Random rw 7:3 IOPS(rw):   $(( ${read_73_iops} / 1000 ))K  $(( ${write_73_iops} / 1000 ))K
  4k Random rw 9:1 IOPS(rw):   $(( ${read_91_iops} / 1000 ))K  $(( ${write_91_iops} / 1000 ))K
 
- see more: $basedir
- -------------------End-------------------------"
+-----------------------latency percentiles---------------------------
+128k 1*128 Seq Write BW latency percentiles(us):
+${write_bw[1]} ${write_bw[2]} ${write_bw[3]}
+
+128k 1*128 Seq Read BW latency percentiles(us):
+${read_bw[1]} ${read_bw[2]} ${read_bw[3]}
+
+4K 4*64  Random Write IOPS latency percentiles(us):
+${write_iops[1]} ${write_iops[2]} ${write_iops[3]}
+
+4K 4*64 Random Read IOPS latency percentiles:(us):
+${read_iops[1]} ${read_iops[2]} ${read_iops[3]}
+
+4K 1*1 Random Write Latency:
+${write_lat[1]} ${write_lat[2]} ${write_lat[3]}
+
+4K 1*1 Random Read Latency:
+${read_lat[1]} ${read_lat[2]} ${read_lat[3]}
+
+-------------------------------trim performance----------------------
+1M seq trim : ${write_trim}
+4k rand trim : ${write_randtrim}
+
+---------------------------------------------------------------------
+see more: $basedir
+-----------------------------------------End-------------------------"
