@@ -40,7 +40,7 @@ erasedisk()
        w_log "direct-io format /dev/$DEV done"
    elif [ -n "${DEV:0:4}" ] &&  [ "${DEV:0:4}" = "nvme" ]
    then
-      nvme format /dev/$DEV -l 0 -f 
+      nvme format /dev/$DEV -f -s 1 
       w_log " nvme format /dev/$DEV done"
    elif [ -n "${DEV:0:2}" ] &&  [ "${DEV:0:2}" = "os" ]
    then
