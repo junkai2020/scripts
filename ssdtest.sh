@@ -137,7 +137,7 @@ let "cpucount=($((`cat /proc/cpuinfo | grep processor | tail -1 | awk {'print $3
 machine=`dmidecode |grep -A2 "System Information"|tail -2 |awk -F ":" '{print $NF}' |xargs`
 kernel=`uname -r`
 memory=`cat /proc/meminfo |grep MemTotal |awk '{printf("%d\n",$2/1000/1000)}'`
-
+fio_version=`fio --version`
 #for shannon pcie ssd & nvme ssd
 if [ "x${DEV:0:2}" = "xdf" ]
 then
@@ -452,14 +452,14 @@ done
 w_log "plot iostat finished!"
 
 w_log "型号|代号|容量|固件:CPS|主控|Flash颗粒|顺序读带宽(128K 1job qd128)|顺序写带宽(128K 1job qd128)|随机读IOPS(4K 4job qd64)|随机读IOPS MAX(标注条件)|随机写IOPS(4K 4job qd64)||随机写延迟(us)||随机读延迟(us)|补充说明 "
-w_log "${mode}||${user_capacity}|${firmware_build}:${cps_crc}|||$(( ${read_bw} / 1000 )) MB/s|$(( ${write_bw} / 1000 )) MB/s|$(( ${read_iops} / 1000 ))K|$(( ${maxiops} /1000 ))K($job)|$(( ${write_iops} / 1000 ))K||${write_lat}||${read_lat}|$machine  $cpucount * $cpucores  $cpu  $memory GB SSD: $model SN:$serial_number Kernel:$kernel  $fioversion DRIVER:${driver_version} `date "+%F %T"`"
+w_log "${mode}||${user_capacity}|${firmware_build}:${cps_crc}|||$(( ${read_bw} / 1000 )) MB/s|$(( ${write_bw} / 1000 )) MB/s|$(( ${read_iops} / 1000 ))K|$(( ${maxiops} /1000 ))K($job)|$(( ${write_iops} / 1000 ))K||${write_lat}||${read_lat}|$machine  $cpucount * $cpucores  $cpu  $memory GB SSD: $model SN:$serial_number Kernel:$kernel  $fio_version DRIVER:${driver_version} `date "+%F %T"`"
 
 w_log "
  -------------Test environment -------------------------------------
  machine: $machine   kernel:$kernel
  cpu: $cpucount * $cpucores  $cpu 
  memory: $memory GB  
- fio : $fioversion   ssd: $model ${user_capacity}  $serial_number 功耗: ${p_status}
+ $fio_version   ssd: $model ${user_capacity}  $serial_number 功耗: ${p_status}
  -------------Performance Summary------------------------------------
  Seq Write Bandwidth:      $((${write_bw[0]} / 1000 )) MB/s($wbw_consist_percent) 
  Seq Read Bandwidth:       $((${read_bw[0]} / 1000 )) MB/s($rbw_consist_percent)  
